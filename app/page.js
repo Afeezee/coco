@@ -25,6 +25,39 @@ const SLIDER_CONFIG = [
 
 const SEVERITY_COLOR = { low: "var(--safe)", medium: "var(--amber)", high: "var(--rust-1)" };
 
+// Wall-life scenario assumptions used in the textual summary. Disclosed
+// in the on-screen note so nobody mistakes them for a per-line forecast.
+const WALL_MM = 10;             // nominal carbon-steel wall thickness
+const RETIREMENT_FRAC = 0.5;    // typical 50% wall-loss retirement rule
+
+// Feature-specific action hints for the top-driver recommendation.
+// Wording matches what the RESULTS.md feature-importance section says
+// is and isn't actionable in this model.
+const ACTION_HINT = {
+  inhibitor_efficiency_pct:
+    "Increasing inhibitor efficiency is by far the strongest lever in the model — moving the current setting toward 60%+ typically produces the largest single reduction in rate.",
+  temperature_C:
+    "Lowering the operating temperature back toward 40 °C would meaningfully cut the rate at this pCO₂ / pH.",
+  CO2_pressure_bar:
+    "Reducing CO₂ partial pressure — e.g. via upstream dehydration or gas sweetening — would be the highest-impact operational change here.",
+  flow_velocity_ms:
+    "Flow velocity is a weak driver in this model; changing it alone is unlikely to produce a large reduction.",
+  internal_pressure_bar:
+    "Internal pressure is a very weak driver in this model — do not expect a meaningful change from adjusting it.",
+  shear_stress_Pa:
+    "Shear stress is essentially non-influential in this model — do not expect a meaningful change from adjusting it.",
+  pH:
+    "pH sensitivity is weak within the validated 3.8–4.0 envelope; expect only a small effect from changing it.",
+};
+
+function formatYears(years) {
+  if (!Number.isFinite(years) || years <= 0) return "—";
+  if (years < 0.5) return `${Math.max(1, Math.round(years * 12))} months`;
+  if (years < 10) return `${years.toFixed(1)} years`;
+  if (years < 100) return `${Math.round(years)} years`;
+  return "well over a century";
+}
+
 export default function Page() {
   const [inputs, setInputs] = useState(DEFAULTS);
   const [prediction, setPrediction] = useState(null);
@@ -75,6 +108,13 @@ export default function Page() {
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
+
+    // A new photo represents a new pipe section — reset the sliders and
+    // clear any stale prediction error so the panel starts from the same
+    // baseline conditions the model was calibrated on. The debounced
+    // useEffect below will re-fetch /api/predict with DEFAULTS on its own.
+    setInputs(DEFAULTS);
+    setPredictError(null);
 
     setVisionLoading(true);
     setVisionStatus("Analysing photo for pipe geometry and features...");
@@ -222,6 +262,7 @@ export default function Page() {
               {severity.label}
             </div>
           </div>
+          {prediction && renderExplanation(prediction)}
           {predictError && <div className="note">Prediction error: {predictError}</div>}
         </div>
 
@@ -265,4 +306,87 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * Plain-English scenario summary drawn from the prediction the model
+ * already returned -- no LLM in the loop, so it is deterministic and
+ * matches the numbers in the gauge and the contribution bars exactly.
+ *
+ * Two parts:
+ *   1. Wall-life outlook: how long a nominal WALL_MM wall would take to
+ *      hit the 50% retirement threshold and to be fully consumed at the
+ *      current rate. Both assumptions are disclosed in the on-screen note.
+ *   2. Top-driver action: identifies the input contributing the most
+ *      corrosion above the dataset baseline and states the corresponding
+ *      operational lever, using wording consistent with RESULTS.md on
+ *      what is and isn't actionable in this model.
+ */
+function renderExplanation(prediction) {
+  const rate = prediction.corrosion_rate_mmpy;
+  const contribs = prediction.contributions || [];
+
+  let outlook;
+  if (rate < 0.01) {
+    outlook = (
+      <>
+        Predicted corrosion rate is effectively zero at these conditions —
+        with the current inhibitor performance no meaningful wall loss is
+        expected on operational timescales.
+      </>
+    );
+  } else {
+    const yearsToRetire = (WALL_MM * RETIREMENT_FRAC) / rate;
+    const yearsToBreach = WALL_MM / rate;
+    outlook = (
+      <>
+        At <strong>{rate.toFixed(2)} mm/year</strong>, a nominal 10&nbsp;mm
+        carbon-steel wall would reach the 50% retirement threshold in about{" "}
+        <strong>{formatYears(yearsToRetire)}</strong> and be fully consumed
+        in about <strong>{formatYears(yearsToBreach)}</strong>, if these
+        conditions persist.
+      </>
+    );
+  }
+
+  const topPositive = contribs.find((c) => c.delta_mmpy > 0.02);
+  let action;
+  if (!topPositive) {
+    action = (
+      <>
+        None of the current inputs push the rate meaningfully above the
+        dataset baseline — the recommendation is simply to keep conditions
+        within this envelope.
+      </>
+    );
+  } else {
+    action = (
+      <>
+        Biggest driver above baseline: <strong>{topPositive.label}</strong>
+        {" "}(contributing +{topPositive.delta_mmpy.toFixed(2)} mm/year).{" "}
+        {ACTION_HINT[topPositive.key] ||
+          `Moving ${topPositive.label.toLowerCase()} back toward its dataset baseline would be the largest available reduction.`}
+      </>
+    );
+  }
+
+  return (
+    <div className="explanation">
+      <p>{outlook}</p>
+      <p>{action}</p>
+      {prediction.outside_validated_range && (
+        <p className="explanation-warn">
+          One or more inputs sit outside the validated 30–50&nbsp;°C / pH
+          3.8–4.0 envelope, so the wall-life numbers above are an
+          extrapolation — treat them as indicative only.
+        </p>
+      )}
+      <div className="note">
+        Wall-life numbers assume a nominal 10&nbsp;mm carbon-steel wall and
+        a 50% wall-loss retirement rule — swap in your line&apos;s real
+        thickness and integrity policy for a project figure. This is a
+        constant-conditions projection, not a remaining-life forecast.
+      </div>
+    </div>
+  );
 }

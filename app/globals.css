@@ -195,6 +195,19 @@ input[type="range"]::-moz-range-thumb {
 }
 .confidence-banner.show { display: flex; }
 
+.explanation { margin-top: 16px; }
+.explanation p { font-size: 13px; color: var(--text-0); line-height: 1.55; margin: 0 0 10px; }
+.explanation p strong { color: var(--rust-1); font-weight: 600; }
+.explanation .explanation-warn {
+  color: var(--amber);
+  font-size: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(210, 162, 58, 0.4);
+  background: rgba(210, 162, 58, 0.08);
+  border-radius: 4px;
+}
+.explanation .note { margin-top: 4px; }
+
 .vision-status { font-size: 11px; color: var(--text-2); margin-top: 8px; min-height: 14px; }
 .anomaly-note {
   font-size: 11px;
