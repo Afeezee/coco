@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 const { predict, severityOf, contributions, rangeFlags } = require("../../../lib/model");
 
+// shear_stress_Pa removed in model v1.1 -- deterministic duplicate of
+// flow_velocity_ms in the training data (see lib/model.js header).
 const REQUIRED_FIELDS = [
   "temperature_C",
   "flow_velocity_ms",
   "CO2_pressure_bar",
   "internal_pressure_bar",
-  "shear_stress_Pa",
   "pH",
   "inhibitor_efficiency_pct",
 ];
@@ -42,6 +43,7 @@ export async function POST(request) {
       key: c.key,
       label: c.label,
       delta_mmpy: Number(c.delta.toFixed(3)),
+      note: c.note,
     })),
     model_scope: "CO2 (sweet) internal corrosion only -- see README for H2S future-work scope",
   });

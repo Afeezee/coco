@@ -24,6 +24,22 @@ body {
 }
 .page { padding: 28px; max-width: 1280px; margin: 0 auto; }
 
+.disclaimer-banner {
+  background: rgba(210, 162, 58, 0.10);
+  border: 1px solid rgba(210, 162, 58, 0.45);
+  color: var(--text-1);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 18px;
+}
+.disclaimer-banner strong {
+  color: var(--amber);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 .nameplate {
   display: flex;
   justify-content: space-between;
@@ -177,10 +193,11 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .bars { margin-top: 16px; }
-.bar-row { margin-bottom: 9px; }
+.bar-row { margin-bottom: 14px; }
 .bar-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-1); margin-bottom: 3px; }
 .bar-track { height: 6px; background: var(--bg-2); border-radius: 3px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 3px; }
+.bar-note { font-size: 10.5px; color: var(--text-2); margin-top: 4px; line-height: 1.45; }
 
 .confidence-banner {
   font-size: 11px;

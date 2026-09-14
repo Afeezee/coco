@@ -2,23 +2,17 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Gauge from "../components/Gauge";
 import PipeCanvas from "../components/PipeCanvas";
+import { DEFAULTS } from "../lib/model";
 
-const DEFAULTS = {
-  temperature_C: 40,
-  flow_velocity_ms: 1.5,
-  CO2_pressure_bar: 1.5,
-  internal_pressure_bar: 65,
-  shear_stress_Pa: 4,
-  pH: 3.9,
-  inhibitor_efficiency_pct: 50,
-};
-
+// Slider order/config. shear_stress_Pa removed in model v1.1 -- it was a
+// deterministic duplicate of flow_velocity_ms in the training data and
+// allowed the user to create desynced combinations the model was never
+// shown. See lib/model.js header.
 const SLIDER_CONFIG = [
   { key: "temperature_C", label: "Temperature", unit: "\u00B0C", min: 10, max: 70, step: 1 },
   { key: "flow_velocity_ms", label: "Flow velocity", unit: "m/s", min: 0.8, max: 2.2, step: 0.1 },
   { key: "CO2_pressure_bar", label: "CO2 partial pressure", unit: "bar", min: 0.4, max: 2.6, step: 0.1 },
   { key: "internal_pressure_bar", label: "Internal pressure", unit: "bar", min: 50, max: 80, step: 1 },
-  { key: "shear_stress_Pa", label: "Shear stress", unit: "Pa", min: 1, max: 7, step: 0.1 },
   { key: "pH", label: "pH", unit: "", min: 3.0, max: 5.0, step: 0.05 },
   { key: "inhibitor_efficiency_pct", label: "Inhibitor efficiency", unit: "%", min: 0, max: 100, step: 1 },
 ];
@@ -44,8 +38,6 @@ const ACTION_HINT = {
     "Flow velocity is a weak driver in this model; changing it alone is unlikely to produce a large reduction.",
   internal_pressure_bar:
     "Internal pressure is a very weak driver in this model — do not expect a meaningful change from adjusting it.",
-  shear_stress_Pa:
-    "Shear stress is essentially non-influential in this model — do not expect a meaningful change from adjusting it.",
   pH:
     "pH sensitivity is weak within the validated 3.8–4.0 envelope; expect only a small effect from changing it.",
 };
@@ -150,6 +142,11 @@ export default function Page() {
 
   return (
     <div className="page">
+      <div className="disclaimer-banner" role="note">
+        <strong>Research prototype.</strong> Illustrative only. Not validated for
+        operational or safety-critical use. Predictions outside the stated
+        validated domain are extrapolation and should not be relied upon.
+      </div>
       <div className="nameplate">
         <div>
           <h1>CoCo: Corrosion Console</h1>
@@ -284,14 +281,16 @@ export default function Page() {
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: `${pct}%`, background: col }} />
                   </div>
+                  {c.note && <div className="bar-note">{c.note}</div>}
                 </div>
               );
             })}
           </div>
           <div className="note">
-            Estimated relative influence: each bar shows how much the prediction would shift if
-            that input alone were reset to its typical dataset value, holding all others fixed.
-            It approximates, but is not identical to, a full Shapley-value (SHAP) decomposition.
+            Each bar shows how much the prediction would shift if that input alone were reset
+            to its typical dataset value, holding all others fixed. This is a local, one-at-a-time
+            estimate; it approximates, but is not identical to, a full Shapley-value (SHAP)
+            decomposition.
           </div>
         </div>
       </div>
